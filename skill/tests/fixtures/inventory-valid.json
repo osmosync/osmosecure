@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-22T08:00:00Z",
+  "owner": "example-team",
+  "assets": [
+    { "id": "npm:express", "kind": "lockfile_package", "name": "express", "version": "4.19.2", "ecosystem": "npm", "location": "apps/web/package-lock.json", "detected_by": "lockfile parse" },
+    { "id": "img:api", "kind": "container_image", "name": "registry.example.test/api", "version": "1.8.0", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001", "location": "docker-compose.yml", "detected_by": "compose parse + registry digest lookup" },
+    { "id": "host:php", "kind": "host_runtime", "name": "php", "version": "8.2.20", "distro": "debian", "distro_release": "12", "location": "host app-01", "detected_by": "php -v and dpkg -s php8.2-fpm", "internet_exposed": true, "notes": "dpkg version 8.2.20-1~deb12u1" },
+    { "id": "host:openssl", "kind": "host_runtime", "name": "openssl", "version": "3.0.13", "distro": "debian", "distro_release": "12", "location": "host app-01", "detected_by": "openssl version; dpkg -s openssl" },
+    { "id": "host:nginx", "kind": "host_runtime", "name": "nginx", "version": "1.22.1", "distro": "debian", "distro_release": "12", "location": "host app-01", "detected_by": "nginx -v; dpkg -s nginx", "internet_exposed": true },
+    { "id": "host:node", "kind": "host_runtime", "name": "node", "version": "22.11.0", "distro": "none", "location": "host app-01", "detected_by": "node -v" },
+    { "id": "host:postgres", "kind": "host_runtime", "name": "postgres", "version": "15.8", "distro": "debian", "distro_release": "12", "location": "host db-01", "detected_by": "psql --version; dpkg -s postgresql-15" }
+  ]
+}

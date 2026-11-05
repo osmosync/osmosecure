@@ -1,0 +1,4 @@
+# Fictional test fixtures, not credentials.
+cli/test/audit.test.ts:generic-api-key:159
+cli/test/audit.test.ts:github-app-token:41
+cli/test/security.test.ts:generic-api-key:23

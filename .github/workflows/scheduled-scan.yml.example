@@ -1,0 +1,35 @@
+# EXAMPLE, NOT ENABLED. GitHub only runs *.yml and *.yaml files in this directory.
+# To use it in your own repository: copy it to .github/workflows/osmosecure-scan.yml, adjust, commit.
+#
+# It scans the checkout you give it (your own repository) with your own config and posts alerts
+# to the notifier you configure. Add secrets under Settings > Secrets and variables > Actions.
+name: osmosecure-scan
+on:
+  schedule:
+    - cron: "17 5 * * *"   # choose your own cadence
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Restore state
+        uses: actions/cache@v4
+        with:
+          path: .osmosecure
+          key: osmosecure-state-${{ github.run_id }}
+          restore-keys: osmosecure-state-
+      - name: Run due source groups
+        env:
+          TRIAGE_BACKEND: anthropic-api
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx --yes osmosecure@0.1.0 watch --once --config osmosecure.config.json

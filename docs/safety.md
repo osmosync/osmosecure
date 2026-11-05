@@ -1,0 +1,26 @@
+# Safety
+
+This is the operating contract. The skill's version, with more detail for interactive use, is in [skill/references/safety.md](../skill/references/safety.md).
+
+1. **Own assets only.** Point osmosecure at repositories, images and hosts you own or are authorized in writing to assess. It has no code that probes or fingerprints remote systems.
+2. **Read-only toward your systems.** Scanning reads files and package databases you give it and does not install, upgrade, restart, push, merge or deploy. The one exception is the opt-in fixer (rule 10), which writes only inside its own git worktree. `autoFix.neverPushOrDeploy` is a required literal `true`: no merge, no deploy, and no automatic push.
+3. **Untrusted text stays data.** Disclosures go to a tool-less model step and come back as a validated object. Nothing a model writes is executed or forwarded.
+4. **Secrets are scrubbed before any model call, on a best-effort basis.** Scrubbing runs on every prompt and removes known token shapes and the literal values of secret-looking environment variables; it cannot recognise an arbitrary secret pasted into free text. Do not put credentials in the inventory or config; use environment variables.
+5. **No proof-of-concept material.** Alerts and requests are filtered to remove code fences, fetch-and-execute one-liners and long encoded blobs; the filter is pattern-based, not a guarantee. Do not paste exploit code into issues or inventories either.
+6. **Embargoes.** Use public sources only. Do not feed vendor-only or pre-notification material into the tool.
+7. **Dry-run first, approval for anything larger than a patch bump.** Live remediation needs `--remediate-live` or `remediation.dryRun: false`, a https hook and a secret. Minor, major, host, image and model-derived findings always need explicit approval.
+8. **Baseline before alerting** so the first run does not flood a channel.
+9. **Be a polite client.** Use a descriptive user agent (`feeds.userAgent`), keep the default spacing, and add API keys through the environment if you need higher limits.
+10. **Fixer boundaries (`osmosecure fix`).** Dependency bumps only (npm and pnpm). No LLM is involved: package, version and branch name come from a stored deterministic finding and are validated against strict patterns (no ranges, tags, flags or shell metacharacters), commands run without a shell, and advisory titles or text are never read. It works in a new git worktree from HEAD, refuses a checkout with uncommitted tracked changes, never edits the main checkout, and fails if anything other than `package.json` and the lockfile changed. Package manager lifecycle scripts are disabled; the project test command does run project code, so treat it as trusted. It refuses non-patch/minor bumps without `--allow-major`, is capped per day and per number of runs awaiting approval, and always stops at `awaiting-approval`. Commit is a separate `--approve`; pushing and opening a draft PR is a separate `--publish`, refused unless `fix.publish.enabled` is true, pushing only the fix branch and never forcing. Merging and deploying are out of scope. Child processes get a minimal environment and captured output is secret-scrubbed. `fix-server` binds to loopback only, verifies the HMAC in constant time with a timestamp window and replay check, and takes only the finding key from the request.
+
+## Runtime smoke check
+
+Typecheck and unit tests do not prove an app still starts. A real incident: an OpenTelemetry override passed both and then broke `@sentry/node` on import at startup. The fixer therefore supports an optional runtime gate.
+
+- `fix.smokeCommand` is an argv array (never a shell string), for example `["node", "dist/server.js", "--healthcheck"]`. It runs in the fixer worktree after install and after tests, with `fix.smokeTimeoutMs` (default 120000) and the same minimal environment as the other child processes (`fix.passEnv` names only). A non-zero exit or a timeout fails the run: nothing is staged, the worktree and branch are removed, and the reason is recorded.
+- Guard: when the fixer would add an npm `overrides` entry for a package under `@opentelemetry/`, or another instrumentation package (for example `@sentry/*`, `import-in-the-middle`, `require-in-the-middle`, `shimmer`, `*-instrumentation`), it refuses unless `fix.smokeCommand` is configured. The run is recorded as failed with the reason "skipped: needs parent upgrade or human review". With a smoke command configured the override proceeds only if the smoke check passes.
+- The run record and the `--approve` output show `Smoke check: passed`, `FAILED` or `not configured`. Environment values are never printed.
+
+Limits: a smoke command only checks what it exercises. A command that imports one entry point will not catch a break in a code path it never loads. The instrumentation list is a name-based heuristic, not a dependency graph analysis, so an unlisted package can still break startup; configure a smoke command for any project that matters. The guard covers overrides the fixer writes itself, not an override already present in your `package.json`.
+
+If an advisory changes what osmosecure does in any way other than producing a validated record, treat it as an injection incident and report it (see SECURITY.md).

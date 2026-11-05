@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "dataDir": ".osmosecure",
+  "projects": [
+    {
+      "id": "web",
+      "root": "../my-web-app",
+      "maxDepth": 4,
+      "target": "web-team",
+      "pathTargets": { "services/api": "api-team" }
+    },
+    { "id": "optional-repo", "root": "../maybe-missing", "optional": true }
+  ],
+  "inventoryFiles": ["inventory.json"],
+  "hosts": [{ "id": "app-01", "role": "web server" }],
+  "sourceGroups": {
+    "kev": { "everyMinutes": 15, "sources": ["kev"] }
+  },
+  "thresholds": { "page": 100, "alert": 60, "digest": 35 },
+  "notify": {
+    "maxFindingsPerMessage": 10,
+    "notifiers": [
+      { "type": "stdout" },
+      { "type": "slack", "urlEnv": "SLACK_WEBHOOK_URL" },
+      { "type": "webhook", "urlEnv": "OSMOSECURE_WEBHOOK_URL" },
+      { "type": "telegram" }
+    ]
+  },
+  "remediation": {
+    "dryRun": true,
+    "minTier": "alert",
+    "maxPerRun": 3,
+    "hook": { "url": "https://hooks.example.test/osmosecure", "secretEnv": "OSMOSECURE_HOOK_SECRET" }
+  },
+  "triage": { "backend": "anthropic-api", "maxItemsPerRun": 25 }
+}

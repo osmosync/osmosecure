@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.osmosecure/
+.env
+.env.*
+!.env.example

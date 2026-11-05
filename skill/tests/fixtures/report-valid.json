@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "mode": "disclosure_watch",
+  "generated_at": "2026-10-22T09:00:00Z",
+  "scope": { "owner": "example-team", "own_assets_confirmed": true, "inventory_generated_at": "2026-10-22T08:00:00Z" },
+  "coverage": [
+    { "source": "osv.dev", "status": "checked", "checked_at": "2026-10-22T08:30:00Z", "asset_ids": ["npm:express", "img:api"] },
+    { "source": "oss-security + debian security tracker", "status": "checked", "checked_at": "2026-10-22T08:40:00Z", "asset_ids": ["host:php", "host:openssl", "host:nginx", "host:node", "host:postgres"] }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "php-fpm FastCGI parameter handling flaw, host runtime older than fixed release",
+      "verdict": "confirmed",
+      "severity": "high",
+      "origin": "free_text_disclosure",
+      "advisory": { "ids": ["CVE-2099-0001"], "source": "oss-security", "url": "https://example.test/oss-security/2099-0001", "published_at": "2026-10-21T12:00:00Z", "embargo_respected": true, "excerpt": "php-fpm before 8.2.24 lets a remote client send crafted FastCGI parameters.", "kev": false, "epss": 0.02 },
+      "affected": { "asset_id": "host:php", "installed_version": "8.2.20-1~deb12u1", "upstream_fixed_version": "8.2.24", "distro_fixed_version": "8.2.24-1~deb12u1", "match_basis": "distro_tracker", "backport_checked": true, "reachable_note": "php-fpm is internet exposed behind nginx" },
+      "hunter": { "claim": "Installed dpkg version is below the distro fixed version.", "evidence": ["dpkg -s php8.2-fpm reports 8.2.20-1~deb12u1", "distro tracker lists deb12u1 build of 8.2.24 as fixed"] },
+      "verifier": { "disproof_attempts": ["Checked whether the distro backported the fix into 8.2.20 builds: tracker shows no such backport.", "Checked whether php-fpm is enabled: service is active."], "result": "survived" }
+    },
+    {
+      "id": "F-002",
+      "title": "openssl advisory does not apply, distro backport present",
+      "verdict": "rejected",
+      "severity": "medium",
+      "origin": "free_text_disclosure",
+      "advisory": { "ids": ["CVE-2099-0002"], "source": "vendor bulletin", "url": "https://example.test/bulletin/2099-0002" },
+      "affected": { "asset_id": "host:openssl", "installed_version": "3.0.13-1~deb12u1", "upstream_fixed_version": "3.0.15", "match_basis": "host_runtime_version", "backport_checked": true },
+      "hunter": { "claim": "3.0.13 is below upstream fixed 3.0.15.", "evidence": ["openssl version reports 3.0.13"] },
+      "verifier": { "disproof_attempts": ["Read distro changelog for openssl 3.0.13-1~deb12u1."], "result": "disproved" },
+      "rejection_reason": "Distro changelog lists the fix for CVE-2099-0002 in 3.0.13-1~deb12u1."
+    },
+    {
+      "id": "F-003",
+      "title": "nginx bulletin may apply, distro tracker has no entry yet",
+      "verdict": "needs_validation",
+      "severity": "medium",
+      "origin": "free_text_disclosure",
+      "advisory": { "ids": ["CVE-2099-0003"], "source": "vendor bulletin", "url": "https://example.test/bulletin/2099-0003" },
+      "affected": { "asset_id": "host:nginx", "installed_version": "1.22.1-9", "upstream_fixed_version": "1.26.2", "match_basis": "host_runtime_version", "backport_checked": false },
+      "hunter": { "claim": "1.22.1 is below the upstream fix.", "evidence": ["nginx -v reports 1.22.1"] },
+      "verifier": { "disproof_attempts": ["Searched the distro tracker for the CVE id: no entry."], "result": "inconclusive" },
+      "open_question": "Does Debian 12 ship a backport? Re-check the tracker in 48 hours."
+    },
+    {
+      "id": "F-004",
+      "title": "express range advisory matches lockfile version",
+      "verdict": "confirmed",
+      "severity": "low",
+      "origin": "scanner",
+      "advisory": { "ids": ["GHSA-aaaa-bbbb-cccc"], "source": "osv.dev", "url": "https://example.test/ghsa/aaaa-bbbb-cccc" },
+      "affected": { "asset_id": "npm:express", "installed_version": "4.19.2", "upstream_fixed_version": "4.19.9", "match_basis": "package_range" },
+      "hunter": { "claim": "Locked version falls inside the vulnerable range.", "evidence": ["package-lock.json pins 4.19.2"] },
+      "verifier": { "disproof_attempts": ["Confirmed the lockfile entry is not a dev-only dependency."], "result": "survived" }
+    }
+  ],
+  "remediation_plan": {
+    "pushes_or_deploys": false,
+    "steps": [
+      { "finding_id": "F-001", "action": "Upgrade php8.2-fpm to the fixed distro build on app-01", "command_preview": "apt-get -s install php8.2-fpm", "dry_run": true, "approval": "pending", "rollback": "apt-get install php8.2-fpm=8.2.20-1~deb12u1" }
+    ]
+  }
+}

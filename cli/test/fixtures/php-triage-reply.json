@@ -1,0 +1,15 @@
+{
+  "relevant": true,
+  "cves": ["CVE-2024-4577"],
+  "severity": "critical",
+  "exploitedInWild": "yes",
+  "products": [
+    {
+      "name": "php",
+      "ecosystem": "Host",
+      "affectedRanges": [],
+      "fixedVersions": ["8.3.8", "8.2.20", "8.1.29"]
+    }
+  ],
+  "summary": "Argument injection in PHP CGI mode; fixed in 8.3.8, 8.2.20, 8.1.29."
+}

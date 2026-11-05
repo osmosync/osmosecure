@@ -1,0 +1,51 @@
+{
+  "name": "osmosecure",
+  "version": "0.1.0",
+  "description": "Watches the vulnerabilities that apply to what you actually run: lockfiles, container images and host runtimes, including free-text disclosures that package scanners miss.",
+  "homepage": "https://secure.osmosync.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OsmoSync/osmosecure.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OsmoSync/osmosecure/issues"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "osmosecure": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^1.1.0",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "undici": "^6.29.1",
+    "zod": "^4.6.7"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "security",
+    "vulnerability",
+    "osv",
+    "kev",
+    "epss",
+    "sbom",
+    "llm-triage"
+  ]
+}

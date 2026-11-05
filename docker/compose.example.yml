@@ -1,0 +1,28 @@
+# Copy to compose.yml next to your osmosecure.config.json and a .env file you create yourself.
+# The .env file holds credentials and must never be committed.
+services:
+  osmosecure:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    # image: your-registry.example/osmosecure:0.1.0   # after you publish an image yourself
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TRIAGE_BACKEND: anthropic-api
+    volumes:
+      - ./osmosecure.config.json:/config/osmosecure.config.json:ro
+      - ./inventory.json:/config/inventory.json:ro
+      # mount only the project directories you own and want scanned, read-only
+      # - /path/to/my-app:/projects/my-app:ro
+      - osmosecure-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # outbound HTTPS to public vulnerability sources and your notifier is all it needs; publish no ports
+
+volumes:
+  osmosecure-data:

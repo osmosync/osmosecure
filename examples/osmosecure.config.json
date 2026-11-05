@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "dataDir": ".osmosecure",
+  "inventoryFiles": ["inventory.json"],
+  "projects": [],
+  "localRuntimes": { "includeNode": false },
+  "sourceGroups": {
+    "kev": { "everyMinutes": 30, "sources": ["kev"] },
+    "advisories": { "everyMinutes": 180, "sources": ["osv", "ghsa", "nvd", "epss"] },
+    "bulletins": { "everyMinutes": 720, "sources": ["rss"] },
+    "inventory-scan": { "everyMinutes": 1440, "sources": ["inventory", "scan"] },
+    "digest": { "everyMinutes": 1440, "sources": ["digest"] }
+  },
+  "notify": {
+    "notifiers": [{ "type": "stdout" }]
+  },
+  "remediation": { "dryRun": true, "hook": { "url": "" } },
+  "triage": { "backend": "claude-cli" }
+}

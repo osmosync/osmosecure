@@ -1,0 +1,16 @@
+Options:
+  -p, --print
+  --output-format <format>
+  --tools <tools...>
+  --allowedTools, --allowed-tools <tools...>
+  --disallowedTools, --disallowed-tools <tools...>
+  --permission-mode <mode>
+  --permission-prompts <target>
+  --restricted
+  --safe-mode
+  --strict-mcp-config
+  --disable-slash-commands
+  --no-session-persistence
+  --system-prompt <prompt>
+  --max-budget-usd <amount>
+  --model <model>

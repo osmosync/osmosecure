@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+// Stand-in for the claude CLI. Behaviour comes from mode.json next to this file; every run is logged to calls.jsonl.
+import { appendFileSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const dir = dirname(fileURLToPath(import.meta.url));
+const args = process.argv.slice(2);
+const cfg = JSON.parse(readFileSync(join(dir, 'mode.json'), 'utf8'));
+if (args[0] === '--version') { console.log('2.1.310 (Claude Code)'); process.exit(0); }
+if (args[0] === '--help') { console.log(cfg.help ?? readFileSync(join(dir, 'help.txt'), 'utf8')); process.exit(0); }
+let stdin = '';
+process.stdin.on('data', (d) => (stdin += d));
+process.stdin.on('end', () => {
+  appendFileSync(join(dir, 'calls.jsonl'), JSON.stringify({ args, stdin, cwd: process.cwd(), envKeys: Object.keys(process.env) }) + '\n');
+  if (cfg.mode === 'hang') return setInterval(() => {}, 1000);
+  if (cfg.mode === 'oversized') { return process.stdout.write('x'.repeat(9_000_000), () => process.exit(0)); }
+  if (cfg.mode === 'exit1') process.exit(1);
+  if (cfg.mode === 'raw') { process.stdout.write(cfg.stdout); return process.exit(0); }
+  process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, num_turns: cfg.turns ?? 5, result: cfg.result }));
+});
