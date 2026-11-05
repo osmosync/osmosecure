@@ -36,14 +36,11 @@ export const USAGE = `osmosecure <command> [options]
       exchange a one-time setup code for osmosecure.config.json (configuration only, no secrets).
       --server defaults to OSMOSECURE_SERVER. Refuses an existing config without --force.
       Access level 3 needs --allow-propose. Prints environment variable names to set, never values.
-  scan [--llm] [--group a,b] [--json]
-      read-only pass over every source group: public sources only, no state written, nothing sent.
+  scan [--llm] [--notify] [--group a,b] [--json]
+      one pass over every source group. By default read-only: public sources only, no state written,
+      nothing sent. --notify sends the current page and alert findings to your configured notifiers
+      (every time it runs, no memory of earlier alerts) and saves the findings so \`fix\` can act on them.
       Triage is skipped unless --llm is given.
-  watch [--once] [--tick-seconds <n>] [--no-llm] [--remediate-live]
-      run source groups on their configured cadence. --once runs the groups that are due and exits
-      (cron or CI); without it, loops every tick (default 60 seconds) until stopped.
-  baseline [--no-llm]
-      first-run mode: record every current finding and feed item as known, send nothing, print counts
   triage <file|-> [--source <name>]
       triage one disclosure text against your inventory and print the validated result and matches
   remediate <finding-key> [--live]
@@ -56,8 +53,6 @@ export const USAGE = `osmosecure <command> [options]
       (--publish needs fix.publish.enabled=true in the config and the gh CLI)
   fix-server
       receive signed osmosecure.remediation.v1 requests on loopback and start fixes (never approves or publishes)
-  status
-      last-run times and finding counts
 global: --config <path>   (default ./osmosecure.config.json or OSMOSECURE_CONFIG)   --quiet
 `;
 
@@ -129,56 +124,20 @@ async function main(): Promise<number> {
 
   if (cmd === 'scan') {
     const groups = val('group')?.split(',').filter(Boolean);
-    const summary = await withDeadline(
-      () => runAudit(config, runOptions({ dryRun: true, noLlm: !flag('llm'), groups }), log),
-      log,
-    );
+    const notify = flag('notify');
+    const unlock = notify ? acquireLock(resolveDataDir(config)) : () => undefined;
+    if (!unlock) throw new Error('another osmosecure run holds the lock');
+    let summary;
+    try {
+      summary = await withDeadline(
+        () => runAudit(config, runOptions({ dryRun: !notify, alwaysAlert: notify, noLlm: !flag('llm'), groups }), log),
+        log,
+      );
+    } finally {
+      unlock();
+    }
     if (flag('json') || !summary.message) console.log(JSON.stringify(summary, null, 2));
     else console.log(`${summary.message}\n\n${JSON.stringify({ ...summary, message: undefined }, null, 2)}`);
-    return 0;
-  }
-
-  if (cmd === 'baseline') {
-    const unlock = acquireLock(resolveDataDir(config));
-    if (!unlock) throw new Error('another osmosecure run holds the lock');
-    try {
-      const summary = await withDeadline(() => runAudit(config, runOptions({ baseline: true, noLlm: flag('no-llm') }), log), log);
-      console.log(JSON.stringify(summary, null, 2));
-    } finally {
-      unlock();
-    }
-    return 0;
-  }
-
-  if (cmd === 'watch') {
-    const dataDir = resolveDataDir(config);
-    if (flag('remediate-live') && config.implicitCwd) throw new Error('--remediate-live is refused when the config was found in the current directory; pass --config to name a config you trust');
-    const unlock = acquireLock(dataDir);
-    if (!unlock) {
-      log.warn('another osmosecure run holds the lock; exiting');
-      return flag('once') ? 0 : 1;
-    }
-    let stop = false;
-    for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => (stop = true));
-    const tickMs = Math.max(10, Number(val('tick-seconds')) || 60) * 1000;
-    const notifiers = createNotifiers(config);
-    try {
-      do {
-        try {
-          const summary = await runAudit(config, runOptions({ due: true, noLlm: flag('no-llm'), remediateLive: flag('remediate-live') }), log);
-          if (summary.groupsRun.length) console.log(JSON.stringify({ ...summary, message: undefined }));
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          log.error('run failed', { error: msg });
-          await sendAll(notifiers, `osmosecure run failed: ${msg.slice(0, 300)}`, log);
-          if (flag('once')) return 1;
-        }
-        if (flag('once') || stop) break;
-        for (let waited = 0; waited < tickMs && !stop; waited += 1000) await new Promise((r) => setTimeout(r, 1000));
-      } while (!stop);
-    } finally {
-      unlock();
-    }
     return 0;
   }
 
@@ -215,10 +174,10 @@ async function main(): Promise<number> {
   if (cmd === 'remediate') {
     const key = positional[0];
     if (!key) throw new Error('finding key required');
+    if (flag('live') && config.implicitCwd) throw new Error('--live sends to the hook URL named in the config, so it is refused when the config was found in the current directory; pass --config to name a config you trust');
     const store = new StateStore(resolveDataDir(config));
     const f = store.state.findings[key];
     if (!f) throw new Error('finding not found in state');
-    if (flag('live') && config.implicitCwd) throw new Error('--live sends to the hook URL named in the config, so it is refused when the config was found in the current directory; pass --config to name a config you trust');
     const d = decide({ ...f, tier: 'page' }, config); // explicit approval overrides the tier gate only
     if (d.action === 'none') throw new Error(`not eligible: ${d.why}`);
     const request = buildRequest(f, d, config);
@@ -283,14 +242,6 @@ async function main(): Promise<number> {
     server.listen(port, host, () => log.info('fix-server listening', { host, port }));
     for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => server.close(() => process.exit(0)));
     await new Promise(() => undefined);
-  }
-
-  if (cmd === 'status') {
-    const store = new StateStore(resolveDataDir(config));
-    const byTier: Record<string, number> = {};
-    for (const f of Object.values(store.state.findings)) byTier[f.tier] = (byTier[f.tier] ?? 0) + 1;
-    console.log(JSON.stringify({ lastRun: store.state.lastRun, findingsByTier: byTier, digestPending: store.state.digestPending.length }, null, 2));
-    return 0;
   }
 
   console.error(USAGE);

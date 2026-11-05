@@ -125,7 +125,7 @@ test('backend selection via TRIAGE_BACKEND, config and module', async () => {
 });
 
 
-test('baseline: records findings as notified, sends nothing, marks lastRun', async () => {
+test('scan --notify: alerts on every run with no memory, saves findings for fix, never posts a remediation', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'sa-proj-'));
   writeFileSync(path.join(root, 'package-lock.json'), JSON.stringify({ lockfileVersion: 3, packages: { '': {}, 'node_modules/lodash': { version: '4.17.20' }, 'node_modules/devonly': { version: '1.0.0', dev: true } } }));
   const dataDir = mkdtempSync(path.join(tmpdir(), 'sa-data-'));
@@ -162,21 +162,17 @@ test('baseline: records findings as notified, sends nothing, marks lastRun', asy
   try {
     const mk = () => new HttpClient('ua', silentLogger, undefined, net, async () => {});
     const base = { due: false, groups: ['inventory-scan'], dryRun: false, remediateLive: false, noLlm: true, deadlineMs: 60_000 };
-    const first = await runAudit(cfg, { ...base, baseline: true }, silentLogger, { http: mk() });
-    assert.equal(telegram, 0);
-    assert.equal(first.notified, 0);
-    assert.equal(first.baseline?.recorded, 1);
-    assert.equal(first.baseline?.byTier.alert, 1);
+    const first = await runAudit(cfg, { ...base, alwaysAlert: true }, silentLogger, { http: mk() });
+    assert.equal(telegram, 1);
+    assert.equal(first.notified, 1);
     assert.equal(first.remediation.posted, 0);
     assert.ok(!queried.join('').includes('devonly'), 'dev dependency not scanned');
     const store = new StateStore(dataDir);
-    assert.equal(Object.keys(store.state.notified).length, 1);
+    assert.equal(Object.keys(store.state.findings).length, 1, 'finding saved so fix can act on it');
     assert.equal(Object.keys(store.state.remediated).length, 0);
-    assert.ok(store.state.lastRun['inventory-scan']);
-    // a normal run afterwards stays silent for the baselined finding
-    const second = await runAudit(cfg, base, silentLogger, { http: mk() });
-    assert.equal(second.findingsNew, 0);
-    assert.equal(telegram, 0, 'first live run does not flood Telegram');
+    // no memory of the earlier alert: the same finding is sent again, so cron plus scan --notify is not a deduplicating monitor
+    await runAudit(cfg, { ...base, alwaysAlert: true }, silentLogger, { http: mk() });
+    assert.equal(telegram, 2);
   } finally {
     globalThis.fetch = origFetch;
     delete process.env.OSMOSECURE_DATA_DIR;

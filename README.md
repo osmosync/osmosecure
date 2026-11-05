@@ -1,6 +1,6 @@
 # osmosecure
 
-osmosecure watches the vulnerabilities that apply to what you actually run: application lockfiles, container image tags, and the host runtimes underneath them (PHP, OpenSSL, nginx, Node, PostgreSQL and similar). It checks structured sources such as OSV and CISA KEV on a schedule you define, and it reads free-text security announcements with an LLM so that a bulletin on a mailing list can be matched to your inventory before any database carries it.
+osmosecure checks the vulnerabilities that apply to what you actually run: application lockfiles, container image tags, and the host runtimes underneath them (PHP, OpenSSL, nginx, Node, PostgreSQL and similar). It checks structured sources such as OSV and CISA KEV, and it reads free-text security announcements with an LLM so that a bulletin on a mailing list can be matched to your inventory before any database carries it.
 
 Watching is read-only with respect to your systems. It never merges, deploys, or changes a host. Remediation is either a dry-run request to a signed webhook that you control, or a local dependency-bump fix (`osmosecure fix`) that works in an isolated git worktree and stops for your approval. Pushing is off by default and only ever happens through an explicit `fix --publish`.
 
@@ -38,15 +38,12 @@ cd examples
 node ../cli/dist/cli.js scan --config osmosecure.config.json
 ```
 
-`scan` is a read-only pass: it fetches public sources, prints what it would report, writes no state and sends nothing. Add `--llm` to include free-text triage (see the backends below). A first full pass takes a few minutes because public APIs are rate limited and the client spaces its requests.
+`scan` is a read-only pass by default: it fetches public sources, prints what it would report, writes no state and sends nothing. Add `--llm` to include free-text triage (see the backends below). A first full pass takes a few minutes because public APIs are rate limited and the client spaces its requests.
 
-Typical continuous setup:
+Typical use:
 
 ```bash
-osmosecure baseline           # once: record everything currently known, send nothing
-osmosecure watch              # long-running; runs each source group on its own cadence
-osmosecure watch --once       # cron or CI: run what is due, then exit
-osmosecure status             # last runs and finding counts by tier
+osmosecure scan --notify         # scan, send the current page and alert findings to your notifiers, save findings for fix
 osmosecure triage advisory.txt   # run one disclosure through triage against your inventory
 osmosecure remediate <finding-key>            # prints the request; dry-run unless --live
 osmosecure fix <finding-key>                  # bump one npm/pnpm dependency in a worktree, run tests, stop at awaiting-approval
@@ -54,7 +51,7 @@ osmosecure fix --list
 osmosecure fix --approve <run>                # commit the reviewed change locally on its fix branch
 ```
 
-Run `baseline` before you enable notifications. Without it the first live run reports the highest-scoring findings that already exist as if they were new.
+`scan --notify` has no memory of earlier alerts: it reports every current page and alert finding each time you run it, so run it when you want an answer, not on a timer. It does not watch, schedule, deduplicate or track what changed since the last run; continuous monitoring is the hosted service below.
 
 ## How it differs from other tools
 
@@ -83,7 +80,7 @@ Details in [docs/safety.md](docs/safety.md) and [docs/threat-model.md](docs/thre
 
 ## Optional hosted service
 
-`osmosecure setup --code <setup-code> --server https://secure.osmosync.com` exchanges a one-time setup code for a local `osmosecure.config.json` (configuration only, never secrets). The service adds what is hard to run yourself: deep audits, continuous monitoring across projects and hosts, fix proposals, and team history. It is opt-in; the scanner, watcher, triage, notifiers and fixer in this repository never need it.
+`osmosecure setup --code <setup-code> --server https://secure.osmosync.com` exchanges a one-time setup code for a local `osmosecure.config.json` (configuration only, never secrets). The service adds what is hard to run yourself: deep audits, continuous monitoring across projects and hosts, fix proposals, and team history. It is opt-in; the scanner, triage, notifiers and fixer in this repository never need it.
 
 ## Triage backends
 

@@ -29,7 +29,7 @@ osmosecure init
 osmosecure scan
 ```
 
-Other commands: `watch`, `baseline`, `triage`, `remediate`, `fix`, `status`. Run `osmosecure --help` for the full list and options.
+Other commands: `scan --notify`, `triage`, `remediate`, `fix`. Run `osmosecure --help` for the full list and options.
 
 ## Access levels
 

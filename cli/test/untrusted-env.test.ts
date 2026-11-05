@@ -83,6 +83,6 @@ test('a config found by default in the current directory cannot run the fixer or
     }
   };
   assert.match(run(['fix', '--list']), /refused when the config was found in the current directory/);
-  assert.match(run(['watch', '--once', '--remediate-live']), /refused when the config was found in the current directory/);
+  assert.match(run(['remediate', 'x', '--live']), /refused when the config was found in the current directory/);
   assert.ok(!existsSync(path.join(s.cwd, 'pwned')), 'a command from an implicit cwd config ran');
 });

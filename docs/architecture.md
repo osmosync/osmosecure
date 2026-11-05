@@ -1,6 +1,6 @@
 # Architecture
 
-osmosecure is a command line tool with no server component. A run is a pipeline over local state; the scheduler (`watch`, cron, CI) only decides when to start it.
+osmosecure is a command line tool with no server component. A run is a pipeline over local state; you decide when to start it.
 
 ```
 projects + inventoryFiles + host dumps
@@ -40,9 +40,9 @@ projects + inventoryFiles + host dumps
 
 9. **Fix** (`cli/src/fix.ts`, `cli/src/fix-server.ts`). Local dependency-bump fixer for npm and pnpm. `startFix` validates a stored deterministic finding (package name and versions against strict patterns, patch or minor unless `--allow-major`, clean checkout, run caps), adds a git worktree on `osmosecure/fix-<advisory>-<package>`, runs the package manager with lifecycle scripts disabled, verifies the lockfile and that only the manifest and lockfile changed, runs the test command and writes a report under `<dataDir>/fix/runs`. It stops at `awaiting-approval`. `approveFix` commits locally, `publishFix` (off unless `fix.publish.enabled`) pushes only the fix branch and opens a draft PR via `gh`, `discardFix` removes a run. No model is involved: commands come from structured fields, never advisory text. `fix-server` is an optional loopback receiver for the signed remediation request; it takes only the finding key from the fingerprint and acts on local state.
 
-## Scheduling
+## Running
 
-`watch` loops with a tick (default 60 seconds) and runs the groups whose cadence has elapsed. `watch --once` does one tick and exits, suitable for cron, systemd timers and CI. A lock file in the data directory prevents two instances from writing state together, and each run has a 15 minute ceiling.
+A run is started by hand (`scan`, `scan --notify`). A lock file in the data directory prevents two instances from writing state together, and each run has a 15 minute ceiling. Scheduling and continuous monitoring are part of the hosted service, not this repository.
 
 A source group whose feed failed does not advance its last-run time, so it retries on the next tick.
 

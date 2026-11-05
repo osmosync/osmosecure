@@ -32,8 +32,8 @@ export interface RunOptions {
   /** Post remediation requests for real (still needs a hook URL and its secret). */
   remediateLive: boolean;
   noLlm: boolean;
-  /** Record every current finding as seen and notified; send nothing, post nothing. */
-  baseline?: boolean;
+  /** Alert on every current page or alert finding even if it was sent before, and never post a remediation request. Used by `scan --notify`. */
+  alwaysAlert?: boolean;
   deadlineMs: number;
 }
 
@@ -51,7 +51,6 @@ export interface RunSummary {
   findingsNew: number;
   notified: number;
   remediation: { queued: number; approvalRequired: number; posted: number; dryRun: boolean };
-  baseline?: { recorded: number; byTier: Record<string, number>; byBasis: Record<string, number> };
   message?: string;
 }
 
@@ -302,7 +301,7 @@ export async function runAudit(
     store.state.findings[f.key] = { ...f, firstSeen: prev?.firstSeen ?? nowIso, lastSeen: nowIso };
     if (!prev) summary.findingsNew++;
     const notified = store.state.notified[f.key];
-    const escalated = !notified || tierRank(f.tier) > tierRank(notified.tier);
+    const escalated = opts.alwaysAlert || !notified || tierRank(f.tier) > tierRank(notified.tier);
     if (!escalated) continue;
     if (f.tier === 'page' || f.tier === 'alert') immediate.push(f);
     else if (f.tier === 'digest' && !store.state.digestPending.includes(f.key) && !notified) store.state.digestPending.push(f.key);
@@ -326,7 +325,7 @@ export async function runAudit(
   summary.remediation.dryRun = !live || opts.dryRun;
   const hook = hookReady(config);
   let remediationBudget = config.remediation.maxPerRun;
-  for (const f of opts.baseline ? [] : immediate) {
+  for (const f of opts.alwaysAlert ? [] : immediate) {
     const d = decide(f, config);
     if (d.action === 'none') continue;
     if (d.action === 'approval-required') {
@@ -350,27 +349,13 @@ export async function runAudit(
     }
   }
 
-  // 6b. baseline: everything currently known counts as already notified; nothing is sent.
-  if (opts.baseline) {
-    const byTier: Record<string, number> = {};
-    const byBasis: Record<string, number> = {};
-    for (const [key, f] of Object.entries(store.state.findings)) {
-      store.state.notified[key] = { tier: f.tier, at: nowIso };
-      byTier[f.tier] = (byTier[f.tier] ?? 0) + 1;
-      byBasis[f.basis] = (byBasis[f.basis] ?? 0) + 1;
-    }
-    store.state.digestPending = [];
-    summary.baseline = { recorded: Object.keys(store.state.findings).length, byTier, byBasis };
-    immediate.length = 0;
-  }
-
   // 7. notify
   const messages: string[] = [];
   if (immediate.length) {
     const urgent = immediate.some((f) => f.tier === 'page');
     messages.push(formatMessage(urgent ? 'OsmoSecure urgent alert' : 'OsmoSecure alert', immediate, config.notify.maxFindingsPerMessage));
   }
-  const digestDue = !opts.baseline && groups.some((g) => config.sourceGroups[g].sources.includes('digest'));
+  const digestDue = !opts.alwaysAlert && groups.some((g) => config.sourceGroups[g].sources.includes('digest'));
   if (digestDue && store.state.digestPending.length) {
     const items = store.state.digestPending.map((k) => store.state.findings[k]).filter(Boolean).sort((a, b) => b.score - a.score);
     messages.push(formatMessage('OsmoSecure digest', items, config.notify.maxFindingsPerMessage));
