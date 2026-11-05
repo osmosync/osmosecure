@@ -1,6 +1,6 @@
 ---
 name: osmosecure
-description: Audit what a team runs (app lockfiles, container images, host runtimes such as php, openssl, nginx, node, postgres) against vulnerability databases, and triage free-text disclosures that package scanners have not flagged. Three modes: inventory audit, disclosure watch, approval-gated remediation plan. Use for own-asset exposure checks, "are we affected by this advisory", and runtime or distro-backport questions. Not for hunting bugs in source code.
+description: "Audit what a team runs (app lockfiles, container images, host runtimes such as php, openssl, nginx, node, postgres) against vulnerability databases, and triage free-text disclosures that package scanners have not flagged. Three modes: inventory audit, disclosure watch, approval-gated remediation plan. Use for own-asset exposure checks, \"are we affected by this advisory\", and runtime or distro-backport questions. Not for hunting bugs in source code."
 ---
 
 # /osmosecure
