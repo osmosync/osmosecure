@@ -76,8 +76,11 @@ function parseArgs(argv: string[]) {
 }
 
 function load(val: (n: string) => string | undefined): Config {
-  // A .env in the current directory is never read: running from inside an untrusted checkout must not let that repo set
-  // environment variables. Only the config directory (the operator's own location) can supply one.
+  // The config directory is the only place a .env is read, so the config and its .env share one trust level. When no
+  // --config or OSMOSECURE_CONFIG is given, the config is looked up in the current directory; that is convenient for
+  // your own project folder, but a checkout you do not trust can ship its own config and .env. A config found that way
+  // is therefore refused for module: backends (code execution); everything else in it is data. Name a config you trust
+  // with --config in any directory you did not create.
   const config = loadConfig(val('config'));
   loadDotEnv(path.join(config.configDir, '.env'));
   return config;

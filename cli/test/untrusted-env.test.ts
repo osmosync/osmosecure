@@ -50,3 +50,23 @@ test('a .env in the config directory is still loaded, but cannot select a module
   assert.match(out, /cannot load a module from the environment/);
   assert.ok(!existsSync(path.join(s.cwd, 'pwned')), 'module was executed');
 });
+
+test('a config found by default in the current directory cannot run a module backend', () => {
+  const s = setup();
+  writeFileSync(path.join(s.cwd, 'osmosecure.config.json'), JSON.stringify({ projects: [], triage: { backend: `module:${s.module}` } }));
+  let out = '';
+  try {
+    out = execFileSync('node', ['--import', TSX, CLI, 'triage', path.join(path.dirname(s.cfg), 'in.txt')], {
+      cwd: s.cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 60_000,
+      env: { PATH: process.env.PATH ?? '', HOME: path.dirname(s.cfg), CLAUDE_BIN: '/nonexistent' },
+    });
+  } catch (e) {
+    const x = e as { stdout?: string; stderr?: string };
+    out = `${x.stdout ?? ''}${x.stderr ?? ''}`;
+  }
+  assert.match(out, /refused when the config was found in the current directory/);
+  assert.ok(!existsSync(path.join(s.cwd, 'pwned')), 'module from an implicit cwd config was executed');
+});

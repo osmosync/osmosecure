@@ -78,6 +78,7 @@ export async function createTriageClient(config: Config, env: NodeJS.ProcessEnv 
   if (fromEnv?.startsWith('module:')) throw new Error('TRIAGE_BACKEND cannot load a module from the environment; declare triage.backend "module:<path>" in the config file instead');
   const backend = (fromEnv || config.triage.backend).trim();
   if (backend.startsWith('module:')) {
+    if (config.implicitCwd) throw new Error('a module: triage backend runs code, so it is refused when the config was found in the current directory; pass --config or set OSMOSECURE_CONFIG to name a config you trust');
     const file = expandPath(backend.slice('module:'.length), config.configDir);
     const mod = (await import(pathToFileURL(file).href)) as { default?: BackendFactory };
     if (typeof mod.default !== 'function') throw new Error(`triage backend module ${file} must default-export a factory function`);

@@ -26,6 +26,8 @@ export const configSchema = z.object({
   schemaVersion: z.literal(1),
   /** Resolved by loadConfig to the directory holding the config file; relative paths are relative to it. */
   configDir: z.string().default('.'),
+  /** Set by loadConfig only (never read from the file): the config was found by default in the current directory, not named by --config or OSMOSECURE_CONFIG. */
+  implicitCwd: z.boolean().default(false),
   dataDir: z.string().default('.osmosecure'),
   /**
    * 1 = read-only, no alerts sent; 2 = alerts; 3 = alerts plus the fixer, only with allowPropose=true.
@@ -182,15 +184,16 @@ export function findConfigPath(explicit?: string, cwd = process.cwd()): string {
 }
 
 /** Validates a raw config object on top of the built-in defaults. */
-export function parseConfig(raw: Record<string, unknown>, configDir: string): Config {
+export function parseConfig(raw: Record<string, unknown>, configDir: string, implicitCwd = false): Config {
   const lvl = raw.accessLevel;
   if (typeof lvl === 'number' && lvl > 3) throw new Error(`access level ${lvl} is not supported; refusing (levels 1 to 3 only)`);
-  return configSchema.parse(deepMerge(DEFAULTS, { schemaVersion: 1, ...raw, configDir }));
+  return configSchema.parse(deepMerge(DEFAULTS, { schemaVersion: 1, ...raw, configDir, implicitCwd }));
 }
 
 export function loadConfig(file?: string): Config {
   const abs = findConfigPath(file);
-  return parseConfig(JSON.parse(readFileSync(abs, 'utf8')) as Record<string, unknown>, path.dirname(abs));
+  const implicit = file === undefined && !process.env.OSMOSECURE_CONFIG;
+  return parseConfig(JSON.parse(readFileSync(abs, 'utf8')) as Record<string, unknown>, path.dirname(abs), implicit);
 }
 
 export function resolveDataDir(config: Config): string {
