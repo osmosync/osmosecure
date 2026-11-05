@@ -152,6 +152,7 @@ async function main(): Promise<number> {
 
   if (cmd === 'watch') {
     const dataDir = resolveDataDir(config);
+    if (flag('remediate-live') && config.implicitCwd) throw new Error('--remediate-live is refused when the config was found in the current directory; pass --config to name a config you trust');
     const unlock = acquireLock(dataDir);
     if (!unlock) {
       log.warn('another osmosecure run holds the lock; exiting');
@@ -217,6 +218,7 @@ async function main(): Promise<number> {
     const store = new StateStore(resolveDataDir(config));
     const f = store.state.findings[key];
     if (!f) throw new Error('finding not found in state');
+    if (flag('live') && config.implicitCwd) throw new Error('--live sends to the hook URL named in the config, so it is refused when the config was found in the current directory; pass --config to name a config you trust');
     const d = decide({ ...f, tier: 'page' }, config); // explicit approval overrides the tier gate only
     if (d.action === 'none') throw new Error(`not eligible: ${d.why}`);
     const request = buildRequest(f, d, config);

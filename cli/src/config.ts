@@ -163,7 +163,8 @@ export const configSchema = z.object({
 export type Config = z.infer<typeof configSchema>;
 
 /** Throws when the access level does not permit the fixer commands (fix, fix-server). */
-export function assertFixerAllowed(config: Pick<Config, 'accessLevel' | 'allowPropose'>): void {
+export function assertFixerAllowed(config: Pick<Config, 'accessLevel' | 'allowPropose' | 'implicitCwd'>): void {
+  if (config.implicitCwd) throw new Error('the fixer runs commands named in the config (test and smoke commands), so it is refused when the config was found in the current directory; pass --config or set OSMOSECURE_CONFIG to name a config you trust');
   const level = config.accessLevel;
   if (level === undefined) return;
   if (level < 3) throw new Error(`access level ${level} does not allow the fixer commands; level 3 is required`);
@@ -187,7 +188,10 @@ export function findConfigPath(explicit?: string, cwd = process.cwd()): string {
 export function parseConfig(raw: Record<string, unknown>, configDir: string, implicitCwd = false): Config {
   const lvl = raw.accessLevel;
   if (typeof lvl === 'number' && lvl > 3) throw new Error(`access level ${lvl} is not supported; refusing (levels 1 to 3 only)`);
-  return configSchema.parse(deepMerge(DEFAULTS, { schemaVersion: 1, ...raw, configDir, implicitCwd }));
+  const parsed = configSchema.parse(deepMerge(DEFAULTS, { schemaVersion: 1, ...raw, configDir, implicitCwd }));
+  // A config found by default in the current directory never sends live remediation requests, whatever it says.
+  if (implicitCwd) parsed.remediation.dryRun = true;
+  return parsed;
 }
 
 export function loadConfig(file?: string): Config {

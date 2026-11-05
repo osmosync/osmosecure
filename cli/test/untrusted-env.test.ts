@@ -70,3 +70,19 @@ test('a config found by default in the current directory cannot run a module bac
   assert.match(out, /refused when the config was found in the current directory/);
   assert.ok(!existsSync(path.join(s.cwd, 'pwned')), 'module from an implicit cwd config was executed');
 });
+
+test('a config found by default in the current directory cannot run the fixer or go live', () => {
+  const s = setup();
+  writeFileSync(path.join(s.cwd, 'osmosecure.config.json'), JSON.stringify({ projects: [], fix: { testCommand: ['node', s.module] } }));
+  const run = (args: string[]): string => {
+    try {
+      return execFileSync('node', ['--import', TSX, CLI, ...args], { cwd: s.cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000, env: { PATH: process.env.PATH ?? '', HOME: path.dirname(s.cfg) } });
+    } catch (e) {
+      const x = e as { stdout?: string; stderr?: string };
+      return `${x.stdout ?? ''}${x.stderr ?? ''}`;
+    }
+  };
+  assert.match(run(['fix', '--list']), /refused when the config was found in the current directory/);
+  assert.match(run(['watch', '--once', '--remediate-live']), /refused when the config was found in the current directory/);
+  assert.ok(!existsSync(path.join(s.cwd, 'pwned')), 'a command from an implicit cwd config ran');
+});
